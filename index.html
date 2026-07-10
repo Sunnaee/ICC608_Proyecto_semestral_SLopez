@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RL para Detección de Anomalías</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: #FDF8F0; color: #2D2A24; line-height: 1.6; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        nav { background-color: #7F5539; padding: 0.4rem 1rem; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0.2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.15); flex-shrink: 0; z-index: 10; border-bottom: 2px solid #E9C46A; }
+        nav a { color: #FDF8F0; text-decoration: none; font-weight: 500; font-size: 0.8rem; padding: 0.4rem 0.9rem; border-radius: 30px; transition: all 0.25s ease; cursor: pointer; border: none; background: none; font-family: inherit; white-space: nowrap; border-bottom: 3px solid transparent; }
+        nav a:hover { background-color: rgba(255,255,255,0.12); transform: translateY(-1px); }
+        nav a.active { background-color: #FDF8F0; color: #5A3E2B; font-weight: 600; border-bottom: 3px solid #D46A4A; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .slides-wrapper { display: flex; flex: 1; overflow: hidden; position: relative; }
+        .slides-track { display: flex; flex-wrap: nowrap; transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94); width: 100%; height: 100%; }
+        .slide { flex: 0 0 100%; height: 100%; overflow-y: auto; padding: 1.5rem 2rem 2rem; background-color: #FDF8F0; scroll-behavior: smooth; }
+        .slide::-webkit-scrollbar { width: 5px; }
+        .slide::-webkit-scrollbar-track { background: #F4EAD5; }
+        .slide::-webkit-scrollbar-thumb { background: #B08968; border-radius: 8px; }
+        footer { background-color: #7F5539; color: #FDF8F0; text-align: center; padding: 0.4rem 1rem; font-size: 0.7rem; flex-shrink: 0; border-top: 2px solid #E9C46A; display: flex; justify-content: center; flex-wrap: wrap; gap: 0.8rem 1.5rem; }
+        footer span { opacity: 0.9; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        h1 { font-size: 2.2rem; color: #5A3E2B; border-left: 5px solid #D46A4A; padding-left: 1rem; margin-bottom: 1.2rem; }
+        h2 { font-size: 1.7rem; color: #7F5539; margin-bottom: 0.8rem; border-bottom: 2px solid #E9C46A; padding-bottom: 0.2rem; }
+        h3 { font-size: 1.15rem; color: #7F5539; margin: 1rem 0 0.6rem; }
+        h4 { font-size: 0.95rem; color: #5A3E2B; margin: 0.6rem 0 0.3rem; }
+        p { margin-bottom: 0.7rem; text-align: justify; }
+        .diagram-container { background: white; padding: 0.8rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); margin: 1.2rem 0; display: flex; flex-direction: column; align-items: center; overflow-x: auto; }
+        .diagram-container svg { max-width: 100%; height: auto; }
+        .fig-title { font-weight: 600; color: #5A3E2B; font-size: 0.9rem; margin-top: 0.4rem; text-align: center; }
+        .table-wrapper { overflow-x: auto; margin: 1rem 0; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { background-color: #7F5539; color: white; font-weight: 600; padding: 0.5rem 0.8rem; text-align: left; }
+        td { padding: 0.5rem 0.8rem; border-bottom: 1px solid #E8DDD0; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background-color: #F4EAD5; }
+        .citation { background-color: #F4EAD5; padding: 0.1rem 0.5rem; border-radius: 4px; font-size: 0.75rem; color: #5A3E2B; cursor: default; border-bottom: 1px dotted #7F5539; display: inline-block; }
+        .citation:hover { background-color: #E9C46A; }
+        .equation { background: #F4EAD5; padding: 0.6rem 1.2rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 1rem; text-align: center; margin: 1rem 0; border-left: 4px solid #D46A4A; }
+        .sim-row { display: flex; flex-wrap: wrap; gap: 1.5rem; margin: 1rem 0; }
+        .sim-col { flex: 1 1 280px; background: white; padding: 1rem; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+        .sim-col h4 { color: #5A3E2B; margin-bottom: 0.4rem; font-size: 0.95rem; border-bottom: 1px solid #E9C46A; padding-bottom: 0.2rem; }
+        .control-group { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.8rem; margin-bottom: 0.3rem; }
+        .control-group label { font-weight: 500; min-width: 20px; color: #5A3E2B; font-size: 0.85rem; }
+        .control-group input[type="range"] { flex: 1; min-width: 80px; accent-color: #D46A4A; cursor: pointer; }
+        .value-badge { background-color: #F4EAD5; padding: 0.1rem 0.5rem; border-radius: 20px; font-weight: 600; min-width: 30px; text-align: center; font-size: 0.8rem; }
+        .param-description { font-size: 0.8rem; color: #5A3E2B; background: #FAF5EC; padding: 0.3rem 0.6rem; border-radius: 6px; margin: 0.2rem 0 0.4rem; border-left: 3px solid #D46A4A; text-align: justify; }
+        .speed-control { display: flex; align-items: center; gap: 0.6rem; margin: 0.4rem 0 0.6rem; font-size: 0.85rem; }
+        .speed-control label { font-weight: 500; color: #5A3E2B; }
+        .speed-control input[type="range"] { flex: 1; min-width: 80px; accent-color: #B08968; cursor: pointer; }
+        button { background-color: #7F5539; color: white; border: none; padding: 0.4rem 1.2rem; border-radius: 30px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: background-color 0.2s, transform 0.1s; }
+        button:hover { background-color: #5A3E2B; }
+        button:active { transform: scale(0.96); }
+        button.secondary { background-color: #B08968; }
+        button.secondary:hover { background-color: #7F5539; }
+        #qlGridContainer, #gridContainer { display: grid; gap: 2px; margin: 0 auto; background: #E8DDD0; padding: 2px; border-radius: 8px; }
+        #qlGridContainer { max-width: 300px; aspect-ratio: 1/1; }
+        #gridContainer { max-width: 380px; aspect-ratio: 1/1; }
+        .grid-cell { border-radius: 3px; transition: background-color 0.25s; position: relative; aspect-ratio: 1/1; background-color: #FAF5EC; display: flex; align-items: center; justify-content: center; }
+        .grid-cell .agent-dot { position: absolute; top: 15%; left: 15%; width: 70%; height: 70%; border-radius: 50%; background-color: #5A3E2B; box-shadow: 0 2px 6px rgba(0,0,0,0.35); z-index: 2; }
+        .grid-cell .cell-label { position: absolute; bottom: 2px; right: 4px; font-size: 0.5rem; font-weight: 700; color: rgba(0,0,0,0.3); pointer-events: none; }
+        .grid-cell .best-action-arrow { font-size: 1.2rem; font-weight: 700; color: #2D2A24; text-shadow: 0 1px 4px rgba(255,255,255,0.6); z-index: 1; pointer-events: none; }
+        #qlQTableDisplay { display: grid; grid-template-columns: repeat(4,1fr); gap: 4px; margin: 0.8rem auto; max-width: 320px; }
+        .qtable-cell { background: #FAF5EC; border: 1px solid #DDB892; border-radius: 4px; padding: 0.2rem; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1px; font-size: 0.55rem; font-weight: 500; color: #2D2A24; aspect-ratio: 1/1; align-items: center; justify-items: center; }
+        .qtable-cell .qval { background: rgba(255,255,255,0.5); border-radius: 2px; padding: 0 2px; width: 100%; text-align: center; font-size: 0.55rem; line-height: 1.2; }
+        .qtable-cell .qval.best { background: #E9C46A; font-weight: 700; color: #5A3E2B; }
+        .qtable-cell .qval.highlight { background: #D46A4A; color: white; font-weight: 700; }
+        .legend { display: flex; justify-content: center; gap: 1.2rem; margin-top: 0.4rem; font-size: 0.75rem; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 0.3rem; }
+        .legend-color { display: inline-block; width: 16px; height: 16px; border-radius: 3px; }
+        .reward-chart { background: #FAF5EC; border-radius: 8px; padding: 0.2rem; margin: 0.6rem 0; border: 1px solid #E8DDD0; height: 90px; display: flex; align-items: flex-end; gap: 2px; overflow: hidden; }
+        .reward-bar { flex: 1; background-color: #7F5539; border-radius: 2px 2px 0 0; transition: height 0.2s; min-height: 2px; flex-shrink: 0; }
+        .traffic-container { display: flex; flex-direction: column; gap: 0.8rem; margin: 0.8rem 0; }
+        .traffic-phase { display: flex; align-items: center; gap: 0.6rem; background: #FAF5EC; padding: 0.3rem 0.8rem; border-radius: 6px; border-left: 4px solid #D46A4A; }
+        .traffic-phase .phase-label { font-weight: 700; min-width: 25px; color: #5A3E2B; }
+        .traffic-bar-track { flex: 1; height: 20px; background: #E8DDD0; border-radius: 10px; overflow: hidden; position: relative; }
+        .traffic-bar-fill { height: 100%; background: #D46A4A; border-radius: 10px; transition: width 0.3s ease; width: 0%; }
+        .traffic-phase .phase-value { min-width: 30px; text-align: right; font-weight: 600; font-size: 0.85rem; color: #5A3E2B; }
+        .traffic-phase.active-phase { border-left-color: #88B04B; background: #E9F0DF; }
+        .traffic-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; margin: 0.6rem 0; }
+        .traffic-actions button.action-btn { padding: 0.3rem 1rem; font-size: 0.8rem; background: #B08968; }
+        .traffic-actions button.action-btn:hover { background: #7F5539; }
+        #referencias { background: white; padding: 1.2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        #referencias li { list-style: none; margin-bottom: 0.4rem; padding-left: 1.2rem; text-indent: -1.2rem; font-size: 0.85rem; }
+        #referencias a { color: #7F5539; text-decoration: none; border-bottom: 1px dotted #DDB892; }
+        #referencias a:hover { border-bottom: 1px solid #7F5539; }
+        @media (max-width: 768px) {
+            nav { gap: 0.2rem; padding: 0.3rem 0.3rem; }
+            nav a { font-size: 0.6rem; padding: 0.2rem 0.5rem; }
+            .slide { padding: 1rem 1rem 1.5rem; }
+            h1 { font-size: 1.6rem; }
+            h2 { font-size: 1.3rem; }
+            .sim-col { flex: 1 1 100%; }
+            #gridContainer { max-width: 260px; }
+            #qlGridContainer { max-width: 220px; }
+            #qlQTableDisplay { max-width: 240px; }
+            .diagram-container svg { transform: scale(0.85); transform-origin: top left; }
+            footer { font-size: 0.6rem; padding: 0.3rem 0.5rem; gap: 0.3rem 0.8rem; }
+            .traffic-phase { padding: 0.2rem 0.5rem; gap: 0.4rem; }
+            .traffic-bar-track { height: 16px; }
+            .grid-cell .best-action-arrow { font-size: 0.9rem; }
+            .qtable-cell .qval { font-size: 0.45rem; }
+        }
+        @media (max-width: 480px) {
+            nav a { font-size: 0.5rem; padding: 0.15rem 0.3rem; }
+            .slide { padding: 0.6rem 0.5rem 1rem; }
+            #gridContainer { max-width: 200px; }
+            #qlGridContainer { max-width: 170px; }
+            #qlQTableDisplay { max-width: 180px; }
+            .grid-cell .best-action-arrow { font-size: 0.7rem; }
+            .qtable-cell .qval { font-size: 0.4rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a data-slide="0" class="active">Introducción</a>
+        <a data-slide="1">Conceptos</a>
+        <a data-slide="2">Proceso</a>
+        <a data-slide="3">Q-Learning</a>
+        <a data-slide="4">Caso práctico</a>
+        <a data-slide="5">Conclusiones</a>
+        <a data-slide="6">Referencias</a>
+    </nav>
+    <div class="slides-wrapper">
+        <div class="slides-track" id="slidesTrack">
+            <section class="slide" data-index="0">
+                <div class="container">
+                    <h1>Aprendizaje por refuerzo para la detección de anomalías</h1>
+                    <p>El aprendizaje por refuerzo (Reinforcement Learning) es una rama fundamental del aprendizaje automático en la que los agentes autónomos aprenden a tomar decisiones mediante la interacción con su entorno, a través de un proceso de prueba y error <span class="citation" title="IBM - ¿Qué es el aprendizaje de refuerzo?">[1]</span>. A diferencia del aprendizaje supervisado, que utiliza datos etiquetados para guiar el aprendizaje, o del aprendizaje no supervisado, que busca patrones ocultos en datos no etiquetados, el aprendizaje por refuerzo se enfoca en aprender acciones que maximicen una recompensa acumulativa a lo largo del tiempo <span class="citation" title="GeeksforGeeks - Reinforcement Learning">[2]</span>.</p>
+                    <div class="diagram-container">
+                        <svg viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" style="max-width:100%; height:auto;">
+                            <rect x="10" y="10" width="240" height="180" rx="12" fill="#F4EAD5" stroke="#DDB892" stroke-width="2"/>
+                            <text x="130" y="45" font-family="Segoe UI, sans-serif" font-size="18" font-weight="bold" fill="#5A3E2B" text-anchor="middle">Supervisado</text>
+                            <text x="130" y="75" font-family="Segoe UI, sans-serif" font-size="13" fill="#5A3E2B" text-anchor="middle">Datos etiquetados</text>
+                            <text x="130" y="100" font-family="Segoe UI, sans-serif" font-size="13" fill="#5A3E2B" text-anchor="middle">Predicción /</text>
+                            <text x="130" y="125" font-family="Segoe UI, sans-serif" font-size="13" fill="#5A3E2B" text-anchor="middle">Clasificación</text>
+                            <text x="130" y="165" font-family="Segoe UI, sans-serif" font-size="11" fill="#7F5539" text-anchor="middle">Ej: Regresión, SVM</text>
+                            <rect x="280" y="10" width="240" height="180" rx="12" fill="#F4EAD5" stroke="#DDB892" stroke-width="2"/>
+                            <text x="400" y="45" font-family="Segoe UI, sans-serif" font-size="18" font-weight="bold" fill="#5A3E2B" text-anchor="middle">No Supervisado</text>
+                            <text x="400" y="75" font-family="Segoe UI, sans-serif" font-size="13" fill="#5A3E2B" text-anchor="middle">Datos no etiquetados</text>
+                            <text x="400" y="100" font-family="Segoe UI, sans-serif" font-size="13" fill="#5A3E2B" text-anchor="middle">Patrones ocultos</text>
+                            <text x="400" y="125" font-family="Segoe UI, sans-serif" font-size="13" fill="#5A3E2B" text-anchor="middle">Agrupamiento</text>
+                            <text x="400" y="165" font-family="Segoe UI, sans-serif" font-size="11" fill="#7F5539" text-anchor="middle">Ej: Clustering, PCA</text>
+                            <rect x="550" y="10" width="240" height="180" rx="12" fill="#E9C46A" stroke="#7F5539" stroke-width="3"/>
+                            <text x="670" y="45" font-family="Segoe UI, sans-serif" font-size="18" font-weight="bold" fill="#5A3E2B" text-anchor="middle">Por Refuerzo</text>
+                            <text x="670" y="75" font-family="Segoe UI, sans-serif" font-size="13" fill="#5A3E2B" text-anchor="middle">Interacción / Ensayo-error</text>
+                            <text x="670" y="100" font-family="Segoe UI, sans-serif" font-size="13" fill="#5A3E2B" text-anchor="middle">Maximizar recompensa</text>
+                            <text x="670" y="125" font-family="Segoe UI, sans-serif" font-size="13" fill="#5A3E2B" text-anchor="middle">Decisiones secuenciales</text>
+                            <text x="670" y="165" font-family="Segoe UI, sans-serif" font-size="11" fill="#7F5539" text-anchor="middle">Ej: Robótica, Juegos, Tráfico</text>
+                        </svg>
+                        <p class="fig-title">Figura 1: Comparativa de los paradigmas de aprendizaje automático.</p>
+                    </div>
+                    <p>En el contexto de la detección de anomalías, el aprendizaje por refuerzo ofrece un enfoque particularmente poderoso. Mientras que los métodos tradicionales suelen ser estáticos y basados en umbrales, el RL permite a los sistemas aprender dinámicamente qué constituye un comportamiento normal frente a uno anómalo, adaptándose a entornos cambiantes <span class="citation" title="IBM - ¿Qué es el aprendizaje de refuerzo?">[1]</span>.</p>
+                    <p>El aprendizaje por refuerzo aborda problemas de toma de decisiones secuenciales en entornos inciertos, lo que lo hace ideal para la detección de anomalías en sistemas complejos como redes de computadoras, sistemas industriales o transacciones financieras <span class="citation" title="IBM - ¿Qué es el aprendizaje de refuerzo?">[1]</span>.</p>
+                </div>
+            </section>
+            <section class="slide" data-index="1">
+                <div class="container">
+                    <h2>Conceptos fundamentales</h2>
+                    <p>Para comprender cómo el aprendizaje por refuerzo puede aplicarse a la detección de anomalías, es esencial dominar sus componentes básicos. La Tabla 1 resume cada uno de ellos.</p>
+                    <div class="table-wrapper">
+                        <table>
+                            <caption style="caption-side:bottom; margin-top:0.3rem; font-weight:500; color:#5A3E2B; font-size:0.8rem;">Tabla 1: Componentes del aprendizaje por refuerzo.</caption>
+                            <thead><tr><th>Concepto</th><th>Definición</th><th>Ejemplo en detección de anomalías</th></tr></thead>
+                            <tbody>
+                                <tr><td><strong>Agente</strong></td><td>Ente que toma decisiones y aprende.</td><td>Algoritmo que analiza datos en busca de comportamientos sospechosos <span class="citation" title="GeeksforGeeks - Reinforcement Learning">[2]</span>.</td></tr>
+                                <tr><td><strong>Entorno</strong></td><td>Todo aquello con lo que el agente interactúa.</td><td>Sistema de TI, red de comunicaciones o proceso industrial <span class="citation" title="IBM - ¿Qué es el aprendizaje de refuerzo?">[1]</span>.</td></tr>
+                                <tr><td><strong>Estado</strong></td><td>Situación actual del entorno.</td><td>Vector con métricas: volumen de tráfico, latencia, tasas de error <span class="citation" title="GeeksforGeeks - Reinforcement Learning">[2]</span>.</td></tr>
+                                <tr><td><strong>Acción</strong></td><td>Decisión del agente en un estado.</td><td>Etiquetar evento, escalar alerta, activar respuesta <span class="citation" title="GeeksforGeeks - Reinforcement Learning">[2]</span>.</td></tr>
+                                <tr><td><strong>Recompensa</strong></td><td>Señal de retroalimentación tras cada acción.</td><td>+10 por detección correcta, -5 por falsa alarma <span class="citation" title="IBM - ¿Qué es el aprendizaje de refuerzo?">[1]</span>.</td></tr>
+                                <tr><td><strong>Política</strong></td><td>Estrategia que mapea estados a acciones.</td><td>Determinista (si tráfico > umbral X, alertar) o estocástica (acciones con probabilidades) <span class="citation" title="IBM - ¿Qué es el aprendizaje de refuerzo?">[1]</span><span class="citation" title="GeeksforGeeks - Reinforcement Learning">[2]</span>.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p>Los dos tipos principales de refuerzo (positivo y negativo) guían al agente: el positivo incentiva comportamientos deseables (p. ej., recompensar detecciones acertadas), mientras que el negativo fortalece conductas al evitar condiciones adversas (p. ej., reducir penalizaciones cuando el agente se aproxima al umbral correcto) <span class="citation" title="GeeksforGeeks - Reinforcement Learning">[2]</span>. La política define cómo el agente elige acciones para maximizar la recompensa acumulada esperada.</p>
+                </div>
+            </section>
+            <section class="slide" data-index="2">
+                <div class="container">
+                    <h2>Proceso de aprendizaje mediante recompensas</h2>
+                    <p>El aprendizaje por refuerzo sigue un ciclo iterativo <span class="citation" title="IBM - ¿Qué es el aprendizaje de refuerzo?">[1]</span><span class="citation" title="GeeksforGeeks - Reinforcement Learning">[2]</span>:</p>
+                    <ol style="margin-left:1.5rem; margin-bottom:0.6rem;">
+                        <li><strong>Observación:</strong> El agente observa el estado actual del entorno (s).</li>
+                        <li><strong>Decisión:</strong> El agente selecciona una acción según su política (a = π(s)).</li>
+                        <li><strong>Ejecución:</strong> El agente ejecuta la acción en el entorno.</li>
+                        <li><strong>Retroalimentación:</strong> El entorno transita a un nuevo estado (s') y proporciona una recompensa (r).</li>
+                        <li><strong>Actualización:</strong> El agente actualiza su conocimiento basado en la recompensa.</li>
+                        <li><strong>Repetición:</strong> El proceso continúa con el nuevo estado.</li>
+                    </ol>
+                    <div class="diagram-container">
+                        <svg viewBox="0 0 800 140" xmlns="http://www.w3.org/2000/svg" style="max-width:100%; height:auto;">
+                            <defs><marker id="arrowRight" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto"><polygon points="0 0, 12 4, 0 8" fill="#7F5539"/></marker><marker id="arrowLeft" markerWidth="12" markerHeight="8" refX="0" refY="4" orient="auto"><polygon points="12 0, 0 4, 12 8" fill="#7F5539"/></marker></defs>
+                            <rect x="10" y="15" width="120" height="100" rx="8" fill="#D46A4A" stroke="#7F5539" stroke-width="2"/>
+                            <text x="70" y="45" font-family="Segoe UI, sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">Agente</text>
+                            <text x="70" y="65" font-family="Segoe UI, sans-serif" font-size="10" fill="white" text-anchor="middle">Observa estado</text>
+                            <text x="70" y="85" font-family="Segoe UI, sans-serif" font-size="10" fill="white" text-anchor="middle">Toma decisión</text>
+                            <text x="70" y="105" font-family="Segoe UI, sans-serif" font-size="10" fill="white" text-anchor="middle">Actualiza política</text>
+                            <text x="140" y="65" font-family="Segoe UI, sans-serif" font-size="24" fill="#7F5539" text-anchor="middle">➜</text>
+                            <rect x="155" y="15" width="100" height="100" rx="8" fill="#E9C46A" stroke="#7F5539" stroke-width="2"/>
+                            <text x="205" y="50" font-family="Segoe UI, sans-serif" font-size="14" font-weight="bold" fill="#5A3E2B" text-anchor="middle">Acción</text>
+                            <text x="205" y="70" font-family="Segoe UI, sans-serif" font-size="10" fill="#5A3E2B" text-anchor="middle">(a)</text>
+                            <text x="205" y="90" font-family="Segoe UI, sans-serif" font-size="10" fill="#5A3E2B" text-anchor="middle">Seleccionada</text>
+                            <text x="205" y="108" font-family="Segoe UI, sans-serif" font-size="10" fill="#5A3E2B" text-anchor="middle">según política</text>
+                            <text x="265" y="65" font-family="Segoe UI, sans-serif" font-size="24" fill="#7F5539" text-anchor="middle">➜</text>
+                            <rect x="280" y="15" width="100" height="100" rx="8" fill="#88B04B" stroke="#7F5539" stroke-width="2"/>
+                            <text x="330" y="45" font-family="Segoe UI, sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">Entorno</text>
+                            <text x="330" y="65" font-family="Segoe UI, sans-serif" font-size="10" fill="white" text-anchor="middle">Recibe acción</text>
+                            <text x="330" y="85" font-family="Segoe UI, sans-serif" font-size="10" fill="white" text-anchor="middle">Transita a s'</text>
+                            <text x="330" y="105" font-family="Segoe UI, sans-serif" font-size="10" fill="white" text-anchor="middle">Genera recompensa</text>
+                            <text x="390" y="65" font-family="Segoe UI, sans-serif" font-size="24" fill="#7F5539" text-anchor="middle">➜</text>
+                            <rect x="405" y="15" width="120" height="100" rx="8" fill="#F4EAD5" stroke="#7F5539" stroke-width="2"/>
+                            <text x="465" y="45" font-family="Segoe UI, sans-serif" font-size="12" font-weight="bold" fill="#5A3E2B" text-anchor="middle">Recompensa</text>
+                            <text x="465" y="65" font-family="Segoe UI, sans-serif" font-size="12" font-weight="bold" fill="#5A3E2B" text-anchor="middle">(r)</text>
+                            <text x="465" y="85" font-family="Segoe UI, sans-serif" font-size="10" fill="#5A3E2B" text-anchor="middle">+ Nuevo estado</text>
+                            <text x="465" y="105" font-family="Segoe UI, sans-serif" font-size="10" fill="#5A3E2B" text-anchor="middle">(s')</text>
+                            <text x="535" y="65" font-family="Segoe UI, sans-serif" font-size="24" fill="#7F5539" text-anchor="middle">➜</text>
+                            <rect x="550" y="15" width="110" height="100" rx="8" fill="#B08968" stroke="#7F5539" stroke-width="2"/>
+                            <text x="605" y="45" font-family="Segoe UI, sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">Actualización</text>
+                            <text x="605" y="65" font-family="Segoe UI, sans-serif" font-size="10" fill="white" text-anchor="middle">Actualiza Q</text>
+                            <text x="605" y="85" font-family="Segoe UI, sans-serif" font-size="10" fill="white" text-anchor="middle">Refina política</text>
+                            <text x="605" y="105" font-family="Segoe UI, sans-serif" font-size="10" fill="white" text-anchor="middle">(Q-Learning)</text>
+                            <path d="M 660 65 L 690 65 L 690 130 L 70 130 L 70 115" fill="none" stroke="#7F5539" stroke-width="2" stroke-dasharray="8,4" marker-end="url(#arrowRight)"/>
+                            <text x="380" y="140" font-family="Segoe UI, sans-serif" font-size="10" fill="#7F5539" text-anchor="middle">Ciclo de retroalimentación</text>
+                        </svg>
+                        <p class="fig-title">Figura 3: Ciclo iterativo del aprendizaje por refuerzo.</p>
+                    </div>
+                    <h3>Exploración vs. Explotación</h3>
+                    <p>Uno de los desafíos fundamentales en el aprendizaje por refuerzo es el balance entre <strong>exploración y explotación</strong> <span class="citation" title="IBM - ¿Qué es el aprendizaje de refuerzo?">[1]</span><span class="citation" title="GeeksforGeeks - Reinforcement Learning">[2]</span>. La <strong>explotación</strong> consiste en que el agente use su conocimiento actual para tomar la acción que cree que maximizará la recompensa inmediata, lo que en la práctica significa aplicar las reglas ya conocidas para detectar patrones de ataque previamente identificados. En cambio, la <strong>exploración</strong> implica probar acciones nuevas o menos conocidas para descubrir si pueden generar mejores recompensas a largo plazo, por ejemplo, ensayar nuevos umbrales o combinaciones de características para detectar ataques novedosos. Un agente que solo explota se estanca y no mejora, mientras que uno que solo explora nunca saca provecho de lo aprendido. Es por ello que el equilibrio entre ambas es crucial para un aprendizaje efectivo.</p>
+                    <div class="diagram-container">
+                        <svg viewBox="0 0 620 250" xmlns="http://www.w3.org/2000/svg" style="max-width:100%; height:auto;">
+                            <line x1="40" y1="150" x2="580" y2="150" stroke="#7F5539" stroke-width="4" stroke-dasharray="6,4"/>
+                            <text x="310" y="175" font-family="Segoe UI, sans-serif" font-size="12" fill="#7F5539" text-anchor="middle">Conocimiento actual (Explotación)</text>
+                            <circle cx="150" cy="150" r="12" fill="#D46A4A"/>
+                            <text x="150" y="135" font-family="Segoe UI, sans-serif" font-size="12" font-weight="bold" fill="#5A3E2B" text-anchor="middle">Decisión</text>
+                            <line x1="162" y1="150" x2="260" y2="100" stroke="#88B04B" stroke-width="3"/>
+                            <circle cx="260" cy="100" r="6" fill="#88B04B"/>
+                            <text x="260" y="90" font-family="Segoe UI, sans-serif" font-size="11" fill="#5A3E2B" text-anchor="middle">Recompensa</text>
+                            <text x="260" y="78" font-family="Segoe UI, sans-serif" font-size="11" fill="#5A3E2B" text-anchor="middle">Inmediata (+)</text>
+                            <line x1="162" y1="150" x2="260" y2="200" stroke="#D46A4A" stroke-width="3"/>
+                            <circle cx="260" cy="200" r="6" fill="#D46A4A"/>
+                            <text x="260" y="215" font-family="Segoe UI, sans-serif" font-size="11" fill="#5A3E2B" text-anchor="middle">Camino desconocido</text>
+                            <text x="260" y="230" font-family="Segoe UI, sans-serif" font-size="11" fill="#5A3E2B" text-anchor="middle">(Posible recompensa mayor)</text>
+                            <line x1="260" y1="100" x2="470" y2="100" stroke="#88B04B" stroke-width="2" stroke-dasharray="4,4"/>
+                            <line x1="260" y1="200" x2="470" y2="200" stroke="#D46A4A" stroke-width="2" stroke-dasharray="4,4"/>
+                            <text x="470" y="95" font-family="Segoe UI, sans-serif" font-size="11" fill="#88B04B" text-anchor="middle">Solución óptima local</text>
+                            <text x="470" y="195" font-family="Segoe UI, sans-serif" font-size="11" fill="#D46A4A" text-anchor="middle">Posible óptimo global</text>
+                            <text x="470" y="32" font-family="Segoe UI, sans-serif" font-size="13" font-weight="bold" fill="#5A3E2B" text-anchor="middle">Equilibrio: Exploración + Explotación</text>
+                        </svg>
+                        <p class="fig-title">Figura 4: Balance entre exploración y explotación en la toma de decisiones.</p>
+                    </div>
+                    <h3>Recompensa Inmediata vs. Función de Valor</h3>
+                    <p>La <strong>función de valor</strong>, a diferencia de la recompensa inmediata, considera los beneficios a largo plazo <span class="citation" title="IBM - ¿Qué es el aprendizaje de refuerzo?">[1]</span><span class="citation" title="GeeksforGeeks - Reinforcement Learning">[2]</span>. Mientras que la <strong>recompensa inmediata</strong> representa el beneficio obtenido por una acción específica en el momento, la <strong>función de valor</strong> estima el beneficio total esperado desde un estado hacia el futuro, considerando todas las recompensas acumulativas que se pueden obtener. En detección de anomalías, una acción que genera una falsa alarma (recompensa negativa inmediata) podría ser valiosa si ayuda a descubrir un patrón que previene un ataque mayor en el futuro, por lo que el agente debe aprender a valorar no solo las consecuencias inmediatas sino también las futuras.</p>
+                    <div style="background:#FAF5EC; padding:0.6rem; border-radius:8px; margin-top:0.4rem; text-align:center; font-size:0.9rem;">
+                        <span style="font-weight:600; color:#D46A4A;">Recompensa Inmediata:</span> <span style="color:#5A3E2B;">Beneficio a corto plazo de una acción (ej: -5 por falsa alarma)</span><br>
+                        <span style="font-weight:600; color:#7F5539;">Función de Valor:</span> <span style="color:#5A3E2B;">Beneficio total esperado a largo plazo (ej: +50 por prevenir un ataque)</span>
+                    </div>
+                </div>
+            </section>
+            <section class="slide" data-index="3">
+                <div class="container">
+                    <h2>Q-Learning</h2>
+                    <p>Q-Learning es uno de los algoritmos más representativos del aprendizaje por refuerzo <span class="citation" title="Clifton & Laber - Q-Learning: Theory and Applications">[3]</span><span class="citation" title="Jang et al. - Q-Learning Algorithms: A Comprehensive Classification">[4]</span>. Es un método <strong>off-policy</strong>, lo que significa que separa la política de comportamiento (exploración) de la política objetivo (explotación) <span class="citation" title="Jang et al. - Q-Learning Algorithms: A Comprehensive Classification">[4]</span>. Esta característica lo hace especialmente adecuado para la detección de anomalías, donde necesitamos explorar continuamente para descubrir nuevos patrones de ataque.</p>
+                    <p>El algoritmo se basa en la función Q, que estima la recompensa esperada de tomar una acción en un estado específico y luego seguir la política óptima <span class="citation" title="Clifton & Laber - Q-Learning: Theory and Applications">[3]</span><span class="citation" title="Jang et al. - Q-Learning Algorithms: A Comprehensive Classification">[4]</span>. La actualización de los valores Q sigue la ecuación de Bellman:</p>
+                    <div class="equation">Q(s, a) ← Q(s, a) + α · [R + γ · max<sub>a'</sub> Q(s', a') - Q(s, a)]</div>
+                    <p>Donde Q(s, a) es el valor actual, α la tasa de aprendizaje, R la recompensa, γ el factor de descuento, y max Q(s', a') el máximo valor Q en el nuevo estado.</p>
+                    <p>En el contexto de la detección de anomalías, esta formulación se traduce de manera natural: el estado se define como un vector de características representativas del sistema, por ejemplo, métricas de red como el volumen de tráfico o las tasas de error. La acción corresponde a la decisión de clasificación (etiquetar un evento como normal o anómalo) o al nivel de alerta que se debe generar, y la recompensa se diseña cuidadosamente en función de la precisión de la detección, penalizando las falsas alarmas y recompensando los aciertos críticos <span class="citation" title="Clifton & Laber - Q-Learning: Theory and Applications">[3]</span>.</p>
+                    <p>Para implementar este aprendizaje en la práctica, los valores Q se almacenan en una estructura conocida como <strong>Q-table</strong>. Con el fin de equilibrar adecuadamente la exploración y la explotación, se emplea la política <strong>ε-greedy</strong>, donde con una probabilidad ε el agente elige una acción aleatoria para descubrir nuevas posibilidades y evitar quedarse estancado en soluciones subóptimas. Mientras que con probabilidad 1-ε selecciona la acción con el mayor valor Q almacenado, aprovechando así el conocimiento ya adquirido <span class="citation" title="Jang et al. - Q-Learning Algorithms: A Comprehensive Classification">[4]</span><span class="citation" title="Chin et al. - Q-Learning Based Traffic Optimization">[5]</span>.</p>
+                    <h3>Visualización de la Q-table</h3>
+                    <p>La simulación interactiva muestra un agente aprendiendo en una cuadrícula 4x4. Las flechas indican la mejor acción actual para cada estado. Debajo de la cuadrícula, la tabla numérica muestra los valores Q para cada acción (↑, ↓, ←, →) en cada estado. El valor más alto se resalta en cada celda.</p>
+                    <div class="sim-row">
+                        <div class="sim-col" style="flex:1.5;">
+                            <div id="qlGridContainer"></div>
+                            <div id="qlQTableDisplay"></div>
+                            <div class="legend">
+                                <span class="legend-item"><span class="legend-color" style="background:#88B04B;"></span> Meta</span>
+                                <span class="legend-item"><span class="legend-color" style="background:#5A3E2B; border-radius:50%; width:14px; height:14px;"></span> Agente</span>
+                                <span class="legend-item"><span class="legend-color" style="background:#D46A4A;"></span> Trampa</span>
+                            </div>
+                        </div>
+                        <div class="sim-col">
+                            <h4>Parámetros</h4>
+                            <div class="param-description"><strong>α (Tasa de aprendizaje):</strong> Controla cuánto influye la nueva experiencia sobre la anterior. Valores altos (cercanos a 1) hacen que el agente olvide rápido lo aprendido. Valores bajos (cercanos a 0) lo hacen más conservador.</div>
+                            <div class="control-group"><label>α:</label><input type="range" id="qlAlpha" min="0.05" max="1" step="0.05" value="0.3"><span class="value-badge" id="qlAlphaVal">0.30</span></div>
+                            <div class="param-description"><strong>γ (Factor de descuento):</strong> Pondera la importancia de las recompensas futuras. γ=1 valora igual el futuro que el presente; γ=0 solo considera la recompensa inmediata.</div>
+                            <div class="control-group"><label>γ:</label><input type="range" id="qlGamma" min="0.1" max="1" step="0.05" value="0.9"><span class="value-badge" id="qlGammaVal">0.90</span></div>
+                            <div class="param-description"><strong>ε (Exploración):</strong> Probabilidad de tomar una acción aleatoria en lugar de la mejor conocida. Un ε alto fomenta la exploración del entorno; un ε bajo hace que el agente explote su conocimiento actual.</div>
+                            <div class="control-group"><label>ε:</label><input type="range" id="qlEpsilon" min="0" max="1" step="0.05" value="0.2"><span class="value-badge" id="qlEpsilonVal">0.20</span></div>
+                            <div class="speed-control"><label>Velocidad:</label><input type="range" id="qlSpeed" min="1" max="10" step="1" value="5"><span class="value-badge" id="qlSpeedVal">5</span></div>
+                            <div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin:0.6rem 0;">
+                                <button id="qlStepBtn">Paso a paso</button>
+                                <button id="qlRunBtn">Auto-ejecutar</button>
+                                <button id="qlResetBtn" class="secondary">Reiniciar</button>
+                            </div>
+                            <div style="font-size:0.85rem;">
+                                <span>Episodio: <strong id="qlEpisode">0</strong></span>
+                                <span style="margin-left:0.8rem;">Pasos: <strong id="qlSteps">0</strong></span>
+                                <span style="margin-left:0.8rem;">Recompensa: <strong id="qlTotalReward">0</strong></span>
+                            </div>
+                            <h4 style="margin-top:0.8rem;">Pasos por episodio</h4>
+                            <div class="reward-chart" id="qlChart"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section class="slide" data-index="4">
+                <div class="container">
+                    <h2>Caso práctico: Plan de tiempos de semáforos</h2>
+                    <p>Esta sección presenta una aplicación real de Q-Learning para la optimización del tráfico vehicular, basada en el trabajo de Chin et al. <span class="citation" title="Chin et al. - Q-Learning Based Traffic Optimization">[5]</span>. Este caso ilustra cómo el aprendizaje por refuerzo puede utilizarse para detectar y responder a situaciones anómalas (congestión) en un entorno dinámico.</p>
+                    <p><strong>Descripción del problema:</strong> Las congestiones de tráfico en las ciudades son cada vez más frecuentes debido al aumento de la demanda vehicular. Los sistemas de semáforos convencionales, que operan con tiempos fijos basados en estadísticas históricas, no pueden adaptarse a las condiciones cambiantes del tráfico en tiempo real <span class="citation" title="Chin et al. - Q-Learning Based Traffic Optimization">[5]</span>. Esta falta de adaptabilidad se convierte en una anomalía cuando la demanda supera la capacidad prevista, generando largas colas y retrasos.</p>
+                    <p><strong>Objetivo:</strong> Desarrollar un sistema de control de semáforos que aprenda de sus experiencias pasadas y ajuste dinámicamente los tiempos de verde para minimizar la longitud de las colas y el tiempo de espera promedio en una intersección de 4 fases <span class="citation" title="Chin et al. - Q-Learning Based Traffic Optimization">[5]</span>.</p>
+                    <h3>Modelado del problema</h3>
+                    <p>Para aplicar Q-Learning, se modela el problema en términos de los componentes fundamentales del aprendizaje por refuerzo:</p>
+                    <ul style="margin-left:1.5rem; margin-bottom:0.6rem;">
+                        <li><strong>Estados:</strong> La longitud de la cola de vehículos en cada una de las 4 fases, categorizada en 4 niveles (sin cola, baja, media y alta), dando lugar a 4<sup>4</sup> = 256 combinaciones posibles <span class="citation" title="Chin et al. - Q-Learning Based Traffic Optimization">[5]</span>.</li>
+                        <li><strong>Acciones:</strong> Asignar un tiempo de verde de 1 o 5 segundos a una fase determinada en cada ciclo <span class="citation" title="Chin et al. - Q-Learning Based Traffic Optimization">[5]</span>.</li>
+                        <li><strong>Recompensas:</strong> La función de recompensa está diseñada para incentivar la reducción de colas y penalizar el desperdicio de tiempo de verde. Las reglas son: recompensa positiva al asignar verde a una fase con vehículos en cola; penalización al asignar verde a una fase sin vehículos; y penalización por exceso si una fase recibe demasiado tiempo de verde de forma continuada, para evitar desequilibrios <span class="citation" title="Chin et al. - Q-Learning Based Traffic Optimization">[5]</span>.</li>
+                        <li><strong>Política:</strong> Se utiliza la estrategia ε-greedy para decidir entre explotar la mejor acción conocida o explorar nuevas asignaciones de tiempos <span class="citation" title="Chin et al. - Q-Learning Based Traffic Optimization">[5]</span>.</li>
+                    </ul>
+                    <h3>Resultados de las simulaciones</h3>
+                    <p>El sistema propuesto, denominado QLTSTM (Q-Learning Traffic Signal Timing Plan Management), fue simulado en una intersección real de 4 fases <span class="citation" title="Chin et al. - Q-Learning Based Traffic Optimization">[5]</span>. Se probaron tres casos:</p>
+                    <ul style="margin-left:1.5rem; margin-bottom:0.6rem;">
+                        <li><strong>Caso I (aumento gradual del tráfico):</strong> Durante un período de 3600 segundos con aumento de tráfico, el sistema logró estabilizar la cola entre 30 y 60 vehículos por ciclo, demostrando su capacidad de adaptación.</li>
+                        <li><strong>Caso II (disminución del tráfico):</strong> El sistema respondió rápidamente reduciendo la cola a menos de 10 vehículos una vez que el flujo disminuyó, evidenciando su capacidad de reacción.</li>
+                        <li><strong>Caso III (cambios aleatorios):</strong> El sistema mostró robustez al asignar más tiempo de verde a las fases congestionadas sin descuidar a las demás, aplicando penalizaciones para mantener el equilibrio global.</li>
+                    </ul>
+                    <p>En este contexto, una <strong>anomalía</strong> corresponde a una congestión inesperada o un desequilibrio en las colas. El agente Q-Learning aprende a identificar estas situaciones porque recibe penalizaciones cuando una fase acumula demasiados vehículos, ajusta sus acciones para corregir el desequilibrio, y explora nuevas estrategias (ε-greedy) para encontrar la mejor respuesta ante escenarios no vistos. Así, el sistema no solo optimiza el tráfico en condiciones normales, sino que también detecta y responde a anomalías en tiempo real.</p>
+                    <h3>Lecciones aprendidas</h3>
+                    <p>El caso práctico evidencia que:</p>
+                    <ul style="margin-left:1.5rem; margin-bottom:0.6rem;">
+                        <li>El <strong>diseño de recompensas</strong> debe equilibrar intereses locales y globales (penalizar el exceso de verde en una fase para evitar perjudicar a otras).</li>
+                        <li>La política <strong>ε-greedy</strong> permite descubrir estrategias óptimas en entornos cambiantes.</li>
+                        <li>El sistema demostró ser <strong>robusto</strong> ante variaciones bruscas del tráfico, lo que lo convierte en una solución prometedora para la gestión dinámica de semáforos y, por extensión, para la detección de anomalías en otros dominios <span class="citation" title="Chin et al. - Q-Learning Based Traffic Optimization">[5]</span>.</li>
+                    </ul>
+                    <h3 style="margin-top:1.5rem;">Simulación 1: Agente en un entorno de decisión (Grid World)</h3>
+                    <p>El agente (punto oscuro) debe aprender a llegar a la meta (verde) evitando obstáculos (gris) y trampas (rojo). Las celdas se colorean según el valor Q estimado. Esta dinámica es análoga a la gestión de semáforos: el agente aprende qué acciones (rutas/tiempos de verde) maximizan la recompensa (reducir la congestión).</p>
+                    <div class="sim-row">
+                        <div class="sim-col" style="flex:1.5;">
+                            <div id="gridContainer"></div>
+                            <div class="legend">
+                                <span class="legend-item"><span class="legend-color" style="background:#88B04B;"></span> Meta</span>
+                                <span class="legend-item"><span class="legend-color" style="background:#B08968;"></span> Obstáculo</span>
+                                <span class="legend-item"><span class="legend-color" style="background:#D46A4A;"></span> Trampa</span>
+                                <span class="legend-item"><span class="legend-color" style="background:#5A3E2B; border-radius:50%; width:14px; height:14px;"></span> Agente</span>
+                            </div>
+                        </div>
+                        <div class="sim-col">
+                            <h4>Parámetros</h4>
+                            <div class="param-description"><strong>α (Tasa de aprendizaje):</strong> Controla cuánto influye la nueva experiencia sobre la anterior. Valores altos (cercanos a 1) hacen que el agente olvide rápido lo aprendido. Valores bajos (cercanos a 0) lo hacen más conservador.</div>
+                            <div class="control-group"><label>α:</label><input type="range" id="gridAlpha" min="0.05" max="1" step="0.05" value="0.3"><span class="value-badge" id="gridAlphaVal">0.30</span></div>
+                            <div class="param-description"><strong>γ (Factor de descuento):</strong> Pondera la importancia de las recompensas futuras. γ=1 valora igual el futuro que el presente; γ=0 solo considera la recompensa inmediata.</div>
+                            <div class="control-group"><label>γ:</label><input type="range" id="gridGamma" min="0.1" max="1" step="0.05" value="0.9"><span class="value-badge" id="gridGammaVal">0.90</span></div>
+                            <div class="param-description"><strong>ε (Exploración):</strong> Probabilidad de tomar una acción aleatoria en lugar de la mejor conocida. Un ε alto fomenta la exploración del entorno; un ε bajo hace que el agente explote su conocimiento actual.</div>
+                            <div class="control-group"><label>ε:</label><input type="range" id="gridEpsilon" min="0" max="1" step="0.05" value="0.2"><span class="value-badge" id="gridEpsilonVal">0.20</span></div>
+                            <div class="speed-control"><label>Velocidad:</label><input type="range" id="gridSpeed" min="1" max="10" step="1" value="5"><span class="value-badge" id="gridSpeedVal">5</span></div>
+                            <div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin:0.6rem 0;">
+                                <button id="gridStepBtn">Paso a paso</button>
+                                <button id="gridRunBtn">Auto-ejecutar</button>
+                                <button id="gridResetBtn" class="secondary">Reiniciar</button>
+                            </div>
+                            <div style="font-size:0.85rem;">
+                                <span>Episodio: <strong id="gridEpisode">0</strong></span>
+                                <span style="margin-left:0.8rem;">Pasos: <strong id="gridSteps">0</strong></span>
+                                <span style="margin-left:0.8rem;">Recompensa: <strong id="gridTotalReward">0</strong></span>
+                            </div>
+                            <h4 style="margin-top:0.8rem;">Pasos por episodio</h4>
+                            <div class="reward-chart" id="gridChart"></div>
+                        </div>
+                    </div>
+                    <h3 style="margin-top:1.5rem;">Simulación 2: Control de tráfico con colas</h3>
+                    <p>Simulación más fiel al caso real: el agente debe decidir a qué fase (A, B, C o D) dar prioridad de verde. Las barras representan el número de vehículos en cola. El agente recibe recompensas por reducir la cola total y penalizaciones por dar verde a una fase vacía o por excederse en una fase.</p>
+                    <div class="sim-row">
+                        <div class="sim-col" style="flex:1.8;">
+                            <div class="traffic-container" id="trafficContainer">
+                                <div class="traffic-phase" data-phase="0"><span class="phase-label">A</span><div class="traffic-bar-track"><div class="traffic-bar-fill" id="trafficBar0" style="width:0%;"></div></div><span class="phase-value" id="trafficVal0">0</span></div>
+                                <div class="traffic-phase" data-phase="1"><span class="phase-label">B</span><div class="traffic-bar-track"><div class="traffic-bar-fill" id="trafficBar1" style="width:0%;"></div></div><span class="phase-value" id="trafficVal1">0</span></div>
+                                <div class="traffic-phase" data-phase="2"><span class="phase-label">C</span><div class="traffic-bar-track"><div class="traffic-bar-fill" id="trafficBar2" style="width:0%;"></div></div><span class="phase-value" id="trafficVal2">0</span></div>
+                                <div class="traffic-phase" data-phase="3"><span class="phase-label">D</span><div class="traffic-bar-track"><div class="traffic-bar-fill" id="trafficBar3" style="width:0%;"></div></div><span class="phase-value" id="trafficVal3">0</span></div>
+                            </div>
+                            <div class="traffic-actions">
+                                <button class="action-btn" data-action="0">Dar verde a A</button>
+                                <button class="action-btn" data-action="1">Dar verde a B</button>
+                                <button class="action-btn" data-action="2">Dar verde a C</button>
+                                <button class="action-btn" data-action="3">Dar verde a D</button>
+                            </div>
+                            <div style="display:flex; gap:0.6rem; flex-wrap:wrap; justify-content:center; margin-top:0.4rem;">
+                                <button id="trafficStepBtn">Paso a paso (auto)</button>
+                                <button id="trafficRunBtn">Auto-ejecutar</button>
+                                <button id="trafficResetBtn" class="secondary">Reiniciar</button>
+                            </div>
+                            <div style="font-size:0.85rem; text-align:center; margin-top:0.4rem;">
+                                <span>Episodio: <strong id="trafficEpisode">0</strong></span>
+                                <span style="margin-left:0.8rem;">Recompensa acumulada: <strong id="trafficTotalReward">0</strong></span>
+                                <span style="margin-left:0.8rem;">Última acción: <strong id="trafficLastAction">-</strong></span>
+                            </div>
+                        </div>
+                        <div class="sim-col">
+                            <h4>Parámetros del agente de tráfico</h4>
+                            <div class="param-description"><strong>α (Tasa de aprendizaje):</strong> Controla cuánto influye la nueva experiencia sobre la anterior. Valores altos (cercanos a 1) hacen que el agente olvide rápido lo aprendido. Valores bajos (cercanos a 0) lo hacen más conservador.</div>
+                            <div class="control-group"><label>α:</label><input type="range" id="trafficAlpha" min="0.05" max="1" step="0.05" value="0.3"><span class="value-badge" id="trafficAlphaVal">0.30</span></div>
+                            <div class="param-description"><strong>γ (Factor de descuento):</strong> Pondera la importancia de las recompensas futuras. γ=1 valora igual el futuro que el presente; γ=0 solo considera la recompensa inmediata.</div>
+                            <div class="control-group"><label>γ:</label><input type="range" id="trafficGamma" min="0.1" max="1" step="0.05" value="0.9"><span class="value-badge" id="trafficGammaVal">0.90</span></div>
+                            <div class="param-description"><strong>ε (Exploración):</strong> Probabilidad de tomar una acción aleatoria en lugar de la mejor conocida. Un ε alto fomenta la exploración del entorno; un ε bajo hace que el agente explote su conocimiento actual.</div>
+                            <div class="control-group"><label>ε:</label><input type="range" id="trafficEpsilon" min="0" max="1" step="0.05" value="0.2"><span class="value-badge" id="trafficEpsilonVal">0.20</span></div>
+                            <div class="speed-control"><label>Velocidad:</label><input type="range" id="trafficSpeed" min="1" max="10" step="1" value="5"><span class="value-badge" id="trafficSpeedVal">5</span></div>
+                            <h4 style="margin-top:0.8rem;">Evolución de la recompensa</h4>
+                            <div class="reward-chart" id="trafficChart"></div>
+                        </div>
+                    </div>
+                    <div style="background:#FAF5EC; padding:0.6rem; border-radius:8px; margin-top:0.4rem;">
+                        <p style="margin:0; font-size:0.85rem;"><strong>Analogía con anomalías:</strong> Si una fase acumula vehículos de forma desproporcionada, el agente recibe penalizaciones (detecta la anomalía) y reajusta su estrategia para equilibrar el tráfico <span class="citation" title="Chin et al. - Q-Learning Based Traffic Optimization">[5]</span>.</p>
+                    </div>
+                </div>
+            </section>
+            <section class="slide" data-index="5">
+                <div class="container">
+                    <h2>Conclusiones</h2>
+                    <p>El aprendizaje por refuerzo, y en particular el Q‑Learning, ha demostrado ser una técnica eficaz para la detección y gestión de anomalías en entornos cambiantes. A través del caso de estudio de optimización de semáforos, se ha evidenciado que un agente puede aprender a equilibrar el tráfico y reaccionar ante congestiones sin necesidad de reprogramación manual. La aplicación web interactiva desarrollada como recurso educativo permite a los estudiantes experimentar con los parámetros del algoritmo, visualizar la evolución de la tabla Q y comprender la importancia del equilibrio entre exploración y explotación, conectando así la teoría con la práctica y facilitando el aprendizaje de conceptos fundamentales en sistemas inteligentes.</p>
+                    <p>No obstante, la implementación práctica del Q‑Learning enfrenta desafíos importantes: la sensibilidad al diseño de la función de recompensa, la necesidad de exploración segura en entornos críticos, y la escalabilidad de la Q‑table para espacios de estado grandes, que exigen aproximaciones como Deep Q‑Learning. La herramienta web, si bien valiosa para la enseñanza, simplifica el problema y no captura toda la complejidad del tráfico real. Además, la opacidad de las decisiones basadas en valores Q dificulta su interpretación por parte de los operadores, lo que limita su adopción en sistemas donde la transparencia es esencial.</p>
+                </div>
+            </section>
+            <section class="slide" data-index="6">
+                <div class="container">
+                    <h2>Referencias</h2>
+                    <div id="referencias">
+                        <ul>
+                            <li><a href="https://www.ibm.com/es-es/think/topics/reinforcement-learning" target="_blank">[1]</a> IBM. «¿Qué es el aprendizaje de refuerzo?» Consultado el 8 de jul. de 2026.</li>
+                            <li><a href="https://www.geeksforgeeks.org/machine-learning/what-is-reinforcement-learning/" target="_blank">[2]</a> GeeksforGeeks. «Reinforcement Learning.» Consultado el 8 de jul. de 2026.</li>
+                            <li><a href="https://doi.org/10.1146/annurev-statistics-031219-041220" target="_blank">[3]</a> J. Clifton y E. Laber, «Q-Learning: Theory and Applications.» <em>Annual Review of Statistics and Its Application</em>, vol. 7, 2020.</li>
+                            <li><a href="https://doi.org/10.1109/ACCESS.2019.2941229" target="_blank">[4]</a> B. Jang, M. Kim, G. Harerimana y J. Kim, «Q-Learning Algorithms: A Comprehensive Classification and Applications.» <em>IEEE Access</em>, vol. 7, 2019.</li>
+                            <li><a href="https://doi.org/10.5013/IJSSST.a.12.03.05" target="_blank">[5]</a> Y. Kwong, N. Bolong, A. Kiring, S. Yang, K. Tze y K. Teo, «Q-Learning Based Traffic Optimization in Management of Signal Timing Plan.» <em>International Journal of Simulation</em>, vol. 12, 2011.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+    <footer>
+        <span>Universidad de La Frontera</span>
+        <span>ICC608-1 - Sistemas Inteligentes</span>
+        <span>Estudiante: Sabrina López</span>
+        <span>10 de julio de 2026</span>
+    </footer>
+    <script>
+        const track = document.getElementById('slidesTrack');
+        const navLinks = document.querySelectorAll('nav a');
+        let currentSlide = 0;
+        const totalSlides = navLinks.length;
+        function goToSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+            currentSlide = index;
+            track.style.transform = 'translateX(-' + (index * 100) + '%)';
+            navLinks.forEach((link, i) => link.classList.toggle('active', i === index));
+        }
+        navLinks.forEach((link) => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const idx = parseInt(this.dataset.slide, 10);
+                if (!isNaN(idx)) goToSlide(idx);
+            });
+        });
+        goToSlide(0);
+
+        function getSpeed(v) { return Math.max(100, 1100 - v * 100); }
+
+        // Q-Learning 4x4
+        const qlRows = 4, qlCols = 4;
+        const qlLayout = [[0,0,0,0],[0,0,0,0],[0,0,2,0],[0,0,0,0]];
+        const qlStart = {r:3,c:0}, qlGoal = {r:2,c:2}, qlTrap = {r:2,c:1};
+        let qlQ = [], qlAgent = {r:qlStart.r,c:qlStart.c}, qlEpisode=0, qlStepCount=0, qlTotalReward=0, qlStepsHistory=[], qlRunning=false, qlTimer=null;
+        let qlAlpha=0.3, qlGamma=0.9, qlEpsilon=0.2, qlSpeed=5;
+        const qlActions = [[-1,0],[1,0],[0,-1],[0,1]], qlActionSymbols = ['↑','↓','←','→'];
+        function initQlQ() { qlQ = []; for (let r=0; r<qlRows; r++) { qlQ[r] = []; for (let c=0; c<qlCols; c++) qlQ[r][c] = [0,0,0,0]; } }
+        initQlQ();
+        function resetQlAgent() { qlAgent.r=qlStart.r; qlAgent.c=qlStart.c; qlStepCount=0; qlTotalReward=0; }
+        function resetQl() {
+            if (qlTimer) { clearInterval(qlTimer); qlTimer=null; qlRunning=false; document.getElementById('qlRunBtn').textContent='Auto-ejecutar'; }
+            initQlQ(); resetQlAgent(); qlEpisode=0; qlStepsHistory=[]; renderQl(); renderQlQTable(); renderQlChart();
+            document.getElementById('qlEpisode').textContent='0'; document.getElementById('qlSteps').textContent='0'; document.getElementById('qlTotalReward').textContent='0';
+        }
+        function qlSelectAction(r,c) {
+            if (Math.random() < qlEpsilon) return Math.floor(Math.random()*4);
+            let vals = qlQ[r][c], maxVal=-Infinity, best=[];
+            for (let a=0; a<4; a++) { if (vals[a] > maxVal) { maxVal=vals[a]; best=[a]; } else if (vals[a] === maxVal) best.push(a); }
+            return best[Math.floor(Math.random()*best.length)];
+        }
+        function getBestAction(r,c) {
+            let vals = qlQ[r][c], maxVal=-Infinity, best=0;
+            for (let a=0; a<4; a++) { if (vals[a] > maxVal) { maxVal=vals[a]; best=a; } }
+            return best;
+        }
+        function qlStep() {
+            if (qlAgent.r === qlGoal.r && qlAgent.c === qlGoal.c) { qlStepsHistory.push(qlStepCount); if (qlStepsHistory.length>50) qlStepsHistory.shift(); qlEpisode++; resetQlAgent(); renderQl(); renderQlQTable(); renderQlChart(); document.getElementById('qlEpisode').textContent=qlEpisode; document.getElementById('qlSteps').textContent='0'; document.getElementById('qlTotalReward').textContent='0'; return; }
+            if (qlAgent.r === qlTrap.r && qlAgent.c === qlTrap.c) { qlStepsHistory.push(qlStepCount); if (qlStepsHistory.length>50) qlStepsHistory.shift(); qlEpisode++; resetQlAgent(); renderQl(); renderQlQTable(); renderQlChart(); document.getElementById('qlEpisode').textContent=qlEpisode; document.getElementById('qlSteps').textContent='0'; document.getElementById('qlTotalReward').textContent='0'; return; }
+            let r = qlAgent.r, c = qlAgent.c, action = qlSelectAction(r,c);
+            let nr = r + qlActions[action][0], nc = c + qlActions[action][1];
+            let reward = -1;
+            if (nr < 0 || nr >= qlRows || nc < 0 || nc >= qlCols) { nr = r; nc = c; reward = -2; }
+            else {
+                if (nr === qlTrap.r && nc === qlTrap.c) { reward = -5; qlAgent.r = nr; qlAgent.c = nc; qlTotalReward += reward; qlStepCount++; let maxNext = Math.max(...qlQ[nr][nc]); qlQ[r][c][action] += qlAlpha * (reward + qlGamma * maxNext - qlQ[r][c][action]); renderQl(); renderQlQTable(); renderQlChart(); document.getElementById('qlSteps').textContent=qlStepCount; document.getElementById('qlTotalReward').textContent=qlTotalReward.toFixed(1); return; }
+                else if (nr === qlGoal.r && nc === qlGoal.c) { reward = 10; qlAgent.r = nr; qlAgent.c = nc; qlTotalReward += reward; qlStepCount++; let maxNext = 0; qlQ[r][c][action] += qlAlpha * (reward + qlGamma * maxNext - qlQ[r][c][action]); renderQl(); renderQlQTable(); renderQlChart(); document.getElementById('qlSteps').textContent=qlStepCount; document.getElementById('qlTotalReward').textContent=qlTotalReward.toFixed(1); return; }
+                else { qlAgent.r = nr; qlAgent.c = nc; qlTotalReward += reward; qlStepCount++; }
+            }
+            let maxNext = Math.max(...qlQ[nr][nc]);
+            qlQ[r][c][action] += qlAlpha * (reward + qlGamma * maxNext - qlQ[r][c][action]);
+            renderQl(); renderQlQTable(); renderQlChart();
+            document.getElementById('qlSteps').textContent = qlStepCount;
+            document.getElementById('qlTotalReward').textContent = qlTotalReward.toFixed(1);
+        }
+        function renderQl() {
+            let container = document.getElementById('qlGridContainer'), maxQ=-Infinity, minQ=Infinity;
+            for (let r=0; r<qlRows; r++) for (let c=0; c<qlCols; c++) { let m=Math.max(...qlQ[r][c]); if (m>maxQ) maxQ=m; if (m<minQ) minQ=m; }
+            let range = Math.max(0.001, maxQ - minQ);
+            container.innerHTML = '';
+            for (let r=0; r<qlRows; r++) for (let c=0; c<qlCols; c++) {
+                let cell = document.createElement('div'); cell.className = 'grid-cell';
+                let val = Math.max(...qlQ[r][c]), t = Math.max(0, Math.min(1, (val - minQ)/range));
+                let rC = Math.round(250 - t*180), gC = Math.round(245 - t*160), bC = Math.round(240 - t*150);
+                cell.style.backgroundColor = 'rgb('+rC+','+gC+','+bC+')';
+                if (qlLayout[r][c] === 2) cell.style.backgroundColor = '#88B04B';
+                if (r === qlTrap.r && c === qlTrap.c) cell.style.backgroundColor = '#D46A4A';
+                if (qlAgent.r === r && qlAgent.c === c) { let dot=document.createElement('div'); dot.className='agent-dot'; cell.appendChild(dot); }
+                if (qlLayout[r][c] !== 2 && !(r === qlTrap.r && c === qlTrap.c)) { let arrow=document.createElement('span'); arrow.className='best-action-arrow'; arrow.textContent=qlActionSymbols[getBestAction(r,c)]; cell.appendChild(arrow); }
+                else if (qlLayout[r][c] === 2) { let star=document.createElement('span'); star.className='best-action-arrow'; star.textContent='⭐'; cell.appendChild(star); }
+                if (qlLayout[r][c] !== 2 && !(r === qlTrap.r && c === qlTrap.c)) { let label=document.createElement('span'); label.className='cell-label'; label.textContent=Math.max(...qlQ[r][c]).toFixed(1); cell.appendChild(label); }
+                container.appendChild(cell);
+            }
+            container.style.gridTemplateColumns = 'repeat('+qlCols+', 1fr)';
+        }
+        function renderQlQTable() {
+            let container = document.getElementById('qlQTableDisplay'); container.innerHTML = '';
+            for (let r=0; r<qlRows; r++) for (let c=0; c<qlCols; c++) {
+                let cell = document.createElement('div'); cell.className = 'qtable-cell';
+                let qVals = qlQ[r][c], maxVal = Math.max(...qVals), syms=['↑','↓','←','→'];
+                for (let a=0; a<4; a++) {
+                    let valDiv = document.createElement('div'); valDiv.className='qval'; valDiv.textContent = syms[a] + ' ' + qVals[a].toFixed(1);
+                    if (qVals[a] === maxVal && qVals[a] > -Infinity) valDiv.classList.add('best');
+                    if (qlAgent.r === r && qlAgent.c === c) valDiv.classList.add('highlight');
+                    cell.appendChild(valDiv);
+                }
+                container.appendChild(cell);
+            }
+        }
+        function renderQlChart() {
+            let chart = document.getElementById('qlChart'); chart.innerHTML = '';
+            if (qlStepsHistory.length === 0) { let d=document.createElement('div'); d.style.cssText='width:100%;text-align:center;color:#B08968'; d.textContent='Sin datos aún.'; chart.appendChild(d); return; }
+            let maxS = Math.max(1, ...qlStepsHistory);
+            for (let i=0; i<qlStepsHistory.length; i++) { let bar=document.createElement('div'); bar.className='reward-bar'; let h=Math.max(4, (qlStepsHistory[i]/maxS)*84); bar.style.height=Math.min(86,h)+'px'; chart.appendChild(bar); }
+        }
+        document.getElementById('qlAlpha').oninput = function() { qlAlpha=parseFloat(this.value); document.getElementById('qlAlphaVal').textContent=qlAlpha.toFixed(2); };
+        document.getElementById('qlGamma').oninput = function() { qlGamma=parseFloat(this.value); document.getElementById('qlGammaVal').textContent=qlGamma.toFixed(2); };
+        document.getElementById('qlEpsilon').oninput = function() { qlEpsilon=parseFloat(this.value); document.getElementById('qlEpsilonVal').textContent=qlEpsilon.toFixed(2); };
+        document.getElementById('qlSpeed').oninput = function() { qlSpeed=parseInt(this.value); document.getElementById('qlSpeedVal').textContent=qlSpeed; if (qlRunning) { clearInterval(qlTimer); qlTimer=setInterval(qlStep, getSpeed(qlSpeed)); } };
+        document.getElementById('qlStepBtn').onclick = function() { if (qlRunning) { clearInterval(qlTimer); qlTimer=null; qlRunning=false; document.getElementById('qlRunBtn').textContent='Auto-ejecutar'; } qlStep(); };
+        document.getElementById('qlRunBtn').onclick = function() { if (qlRunning) { clearInterval(qlTimer); qlTimer=null; qlRunning=false; this.textContent='Auto-ejecutar'; } else { qlRunning=true; this.textContent='Detener'; qlTimer=setInterval(qlStep, getSpeed(qlSpeed)); } };
+        document.getElementById('qlResetBtn').onclick = resetQl;
+        renderQl(); renderQlQTable(); renderQlChart();
+
+        // Grid World 6x6
+        const gridLayout = [[0,0,0,2,0,0],[0,1,0,0,1,0],[0,1,0,0,0,0],[0,0,0,0,1,0],[0,0,3,0,0,0],[0,0,0,0,0,0]];
+        const rows=6, cols=6, startPos={r:5,c:0}, goalPos={r:0,c:3}, trapPos={r:4,c:2};
+        let gridQ=[], gridAgent={r:startPos.r,c:startPos.c}, gridEpisode=0, gridStepCount=0, gridTotalReward=0, gridStepsHistory=[], gridRunning=false, gridTimer=null;
+        let gridAlpha=0.3, gridGamma=0.9, gridEpsilon=0.2, gridSpeed=5;
+        const gridActions = [[-1,0],[1,0],[0,-1],[0,1]];
+        function initGridQ() { gridQ = []; for (let r=0; r<rows; r++) { gridQ[r] = []; for (let c=0; c<cols; c++) gridQ[r][c] = [0,0,0,0]; } }
+        initGridQ();
+        function resetGridAgent() { gridAgent.r=startPos.r; gridAgent.c=startPos.c; gridStepCount=0; gridTotalReward=0; }
+        function resetGrid() {
+            if (gridTimer) { clearInterval(gridTimer); gridTimer=null; gridRunning=false; document.getElementById('gridRunBtn').textContent='Auto-ejecutar'; }
+            initGridQ(); resetGridAgent(); gridEpisode=0; gridStepsHistory=[]; renderGrid(); renderGridChart();
+            document.getElementById('gridEpisode').textContent='0'; document.getElementById('gridSteps').textContent='0'; document.getElementById('gridTotalReward').textContent='0';
+        }
+        function gridSelectAction(r,c) {
+            if (Math.random() < gridEpsilon) return Math.floor(Math.random()*4);
+            let vals = gridQ[r][c], maxVal=-Infinity, best=[];
+            for (let a=0; a<4; a++) { if (vals[a] > maxVal) { maxVal=vals[a]; best=[a]; } else if (vals[a] === maxVal) best.push(a); }
+            return best[Math.floor(Math.random()*best.length)];
+        }
+        function gridStep() {
+            if (gridAgent.r === goalPos.r && gridAgent.c === goalPos.c) { gridStepsHistory.push(gridStepCount); if (gridStepsHistory.length>50) gridStepsHistory.shift(); gridEpisode++; resetGridAgent(); renderGrid(); renderGridChart(); document.getElementById('gridEpisode').textContent=gridEpisode; document.getElementById('gridSteps').textContent='0'; document.getElementById('gridTotalReward').textContent='0'; return; }
+            if (gridAgent.r === trapPos.r && gridAgent.c === trapPos.c) { gridStepsHistory.push(gridStepCount); if (gridStepsHistory.length>50) gridStepsHistory.shift(); gridEpisode++; resetGridAgent(); renderGrid(); renderGridChart(); document.getElementById('gridEpisode').textContent=gridEpisode; document.getElementById('gridSteps').textContent='0'; document.getElementById('gridTotalReward').textContent='0'; return; }
+            let r = gridAgent.r, c = gridAgent.c, action = gridSelectAction(r,c);
+            let nr = r + gridActions[action][0], nc = c + gridActions[action][1];
+            let reward = -1;
+            if (nr < 0 || nr >= rows || nc < 0 || nc >= cols || gridLayout[nr][nc] === 1) { nr = r; nc = c; reward = -2; }
+            else if (gridLayout[nr][nc] === 3) { reward = -5; gridAgent.r=nr; gridAgent.c=nc; gridTotalReward += reward; gridStepCount++; let maxNext=Math.max(...gridQ[nr][nc]); gridQ[r][c][action] += gridAlpha * (reward + gridGamma * maxNext - gridQ[r][c][action]); renderGrid(); renderGridChart(); document.getElementById('gridSteps').textContent=gridStepCount; document.getElementById('gridTotalReward').textContent=gridTotalReward.toFixed(1); return; }
+            else if (gridLayout[nr][nc] === 2) { reward = 10; gridAgent.r=nr; gridAgent.c=nc; gridTotalReward += reward; gridStepCount++; let maxNext=0; gridQ[r][c][action] += gridAlpha * (reward + gridGamma * maxNext - gridQ[r][c][action]); renderGrid(); renderGridChart(); document.getElementById('gridSteps').textContent=gridStepCount; document.getElementById('gridTotalReward').textContent=gridTotalReward.toFixed(1); return; }
+            else { gridAgent.r=nr; gridAgent.c=nc; gridTotalReward += reward; gridStepCount++; }
+            let maxNext = Math.max(...gridQ[nr][nc]);
+            gridQ[r][c][action] += gridAlpha * (reward + gridGamma * maxNext - gridQ[r][c][action]);
+            renderGrid(); renderGridChart();
+            document.getElementById('gridSteps').textContent = gridStepCount;
+            document.getElementById('gridTotalReward').textContent = gridTotalReward.toFixed(1);
+        }
+        function renderGrid() {
+            let container = document.getElementById('gridContainer'), maxQ=-Infinity, minQ=Infinity;
+            for (let r=0; r<rows; r++) for (let c=0; c<cols; c++) { let m=Math.max(...gridQ[r][c]); if (m>maxQ) maxQ=m; if (m<minQ) minQ=m; }
+            let range = Math.max(0.001, maxQ - minQ);
+            container.innerHTML = '';
+            for (let r=0; r<rows; r++) for (let c=0; c<cols; c++) {
+                let cell = document.createElement('div'); cell.className='grid-cell';
+                let val = Math.max(...gridQ[r][c]), t = Math.max(0, Math.min(1, (val - minQ)/range));
+                let rC = Math.round(250 - t*180), gC = Math.round(245 - t*160), bC = Math.round(240 - t*150);
+                cell.style.backgroundColor = 'rgb('+rC+','+gC+','+bC+')';
+                if (gridLayout[r][c] === 1) cell.style.backgroundColor = '#B08968';
+                else if (gridLayout[r][c] === 2) cell.style.backgroundColor = '#88B04B';
+                else if (gridLayout[r][c] === 3) cell.style.backgroundColor = '#D46A4A';
+                if (gridAgent.r === r && gridAgent.c === c) { let dot=document.createElement('div'); dot.className='agent-dot'; cell.appendChild(dot); }
+                if (gridLayout[r][c] !== 1 && gridLayout[r][c] !== 2 && gridLayout[r][c] !== 3) { let label=document.createElement('span'); label.className='cell-label'; label.textContent=Math.max(...gridQ[r][c]).toFixed(1); cell.appendChild(label); }
+                container.appendChild(cell);
+            }
+            container.style.gridTemplateColumns = 'repeat('+cols+', 1fr)';
+        }
+        function renderGridChart() {
+            let chart = document.getElementById('gridChart'); chart.innerHTML = '';
+            if (gridStepsHistory.length === 0) { let d=document.createElement('div'); d.style.cssText='width:100%;text-align:center;color:#B08968'; d.textContent='Sin datos aún.'; chart.appendChild(d); return; }
+            let maxS = Math.max(1, ...gridStepsHistory);
+            for (let i=0; i<gridStepsHistory.length; i++) { let bar=document.createElement('div'); bar.className='reward-bar'; let h=Math.max(4, (gridStepsHistory[i]/maxS)*84); bar.style.height=Math.min(86,h)+'px'; chart.appendChild(bar); }
+        }
+        document.getElementById('gridAlpha').oninput = function() { gridAlpha=parseFloat(this.value); document.getElementById('gridAlphaVal').textContent=gridAlpha.toFixed(2); };
+        document.getElementById('gridGamma').oninput = function() { gridGamma=parseFloat(this.value); document.getElementById('gridGammaVal').textContent=gridGamma.toFixed(2); };
+        document.getElementById('gridEpsilon').oninput = function() { gridEpsilon=parseFloat(this.value); document.getElementById('gridEpsilonVal').textContent=gridEpsilon.toFixed(2); };
+        document.getElementById('gridSpeed').oninput = function() { gridSpeed=parseInt(this.value); document.getElementById('gridSpeedVal').textContent=gridSpeed; if (gridRunning) { clearInterval(gridTimer); gridTimer=setInterval(gridStep, getSpeed(gridSpeed)); } };
+        document.getElementById('gridStepBtn').onclick = function() { if (gridRunning) { clearInterval(gridTimer); gridTimer=null; gridRunning=false; document.getElementById('gridRunBtn').textContent='Auto-ejecutar'; } gridStep(); };
+        document.getElementById('gridRunBtn').onclick = function() { if (gridRunning) { clearInterval(gridTimer); gridTimer=null; gridRunning=false; this.textContent='Auto-ejecutar'; } else { gridRunning=true; this.textContent='Detener'; gridTimer=setInterval(gridStep, getSpeed(gridSpeed)); } };
+        document.getElementById('gridResetBtn').onclick = resetGrid;
+        renderGrid(); renderGridChart();
+
+        // Tráfico
+        let tQueues = [0,0,0,0], tQTable = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+        let tEpisode=0, tTotalReward=0, tLastAction=-1, tRewardHistory=[], tRunning=false, tTimer=null;
+        let tAlpha=0.3, tGamma=0.9, tEpsilon=0.2, tSpeed=5;
+        function tGetState() { let maxVal = Math.max(...tQueues); if (maxVal === 0) return 0; return tQueues.indexOf(maxVal); }
+        function tSelectAction(state) {
+            if (Math.random() < tEpsilon) return Math.floor(Math.random()*4);
+            let maxQ = -Infinity, best = [];
+            for (let a=0; a<4; a++) { if (tQTable[state][a] > maxQ) { maxQ = tQTable[state][a]; best=[a]; } else if (tQTable[state][a] === maxQ) best.push(a); }
+            return best[Math.floor(Math.random()*best.length)];
+        }
+        function tStep() {
+            for (let i=0; i<4; i++) { tQueues[i] += Math.floor(Math.random()*3); if (tQueues[i] > 30) tQueues[i] = 30; }
+            let state = tGetState(), action = tSelectAction(state);
+            let released = Math.min(tQueues[action], 3 + Math.floor(Math.random()*3));
+            tQueues[action] = Math.max(0, tQueues[action] - released);
+            let totalQ = tQueues.reduce((a,b)=>a+b,0);
+            let reward = -totalQ * 0.5;
+            if (tQueues[action] < 2) reward -= 2;
+            if (state === action) reward += 5;
+            reward = Math.round(reward * 10) / 10;
+            let nextState = tGetState(), maxNext = Math.max(...tQTable[nextState]);
+            tQTable[state][action] += tAlpha * (reward + tGamma * maxNext - tQTable[state][action]);
+            tTotalReward += reward; tEpisode++; tLastAction = action;
+            tRewardHistory.push(tTotalReward); if (tRewardHistory.length > 50) tRewardHistory.shift();
+            renderTraffic(); renderTrafficChart();
+            document.getElementById('trafficEpisode').textContent = tEpisode;
+            document.getElementById('trafficTotalReward').textContent = tTotalReward.toFixed(1);
+            document.getElementById('trafficLastAction').textContent = String.fromCharCode(65 + action);
+            document.querySelectorAll('.traffic-phase').forEach(el => el.classList.toggle('active-phase', parseInt(el.dataset.phase) === action));
+        }
+        function tReset() {
+            if (tTimer) { clearInterval(tTimer); tTimer=null; tRunning=false; document.getElementById('trafficRunBtn').textContent='Auto-ejecutar'; }
+            tQueues = [0,0,0,0]; tQTable = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+            tEpisode=0; tTotalReward=0; tLastAction=-1; tRewardHistory=[];
+            renderTraffic(); renderTrafficChart();
+            document.getElementById('trafficEpisode').textContent='0';
+            document.getElementById('trafficTotalReward').textContent='0';
+            document.getElementById('trafficLastAction').textContent='-';
+            document.querySelectorAll('.traffic-phase').forEach(el => el.classList.remove('active-phase'));
+        }
+        function renderTraffic() {
+            let maxQ = Math.max(1, ...tQueues);
+            for (let i=0; i<4; i++) { let fill = document.getElementById('trafficBar'+i), val = document.getElementById('trafficVal'+i); let pct = Math.max(2, (tQueues[i]/maxQ)*100); fill.style.width = Math.min(100, pct)+'%'; val.textContent = tQueues[i]; }
+        }
+        function renderTrafficChart() {
+            let chart = document.getElementById('trafficChart'); chart.innerHTML = '';
+            if (tRewardHistory.length === 0) { let d=document.createElement('div'); d.style.cssText='width:100%;text-align:center;color:#B08968'; d.textContent='Sin datos aún.'; chart.appendChild(d); return; }
+            let maxR = Math.max(1, Math.abs(Math.min(0, ...tRewardHistory)) + Math.max(0, ...tRewardHistory) + 1);
+            let minR = Math.min(0, ...tRewardHistory), range = Math.max(1, maxR - minR);
+            for (let i=0; i<tRewardHistory.length; i++) { let bar = document.createElement('div'); bar.className='reward-bar'; let norm = (tRewardHistory[i] - minR)/range; bar.style.height = Math.min(86, norm*84+2)+'px'; bar.style.backgroundColor = tRewardHistory[i] >= 0 ? '#88B04B' : '#D46A4A'; chart.appendChild(bar); }
+        }
+        document.getElementById('trafficAlpha').oninput = function() { tAlpha=parseFloat(this.value); document.getElementById('trafficAlphaVal').textContent=tAlpha.toFixed(2); };
+        document.getElementById('trafficGamma').oninput = function() { tGamma=parseFloat(this.value); document.getElementById('trafficGammaVal').textContent=tGamma.toFixed(2); };
+        document.getElementById('trafficEpsilon').oninput = function() { tEpsilon=parseFloat(this.value); document.getElementById('trafficEpsilonVal').textContent=tEpsilon.toFixed(2); };
+        document.getElementById('trafficSpeed').oninput = function() { tSpeed=parseInt(this.value); document.getElementById('trafficSpeedVal').textContent=tSpeed; if (tRunning) { clearInterval(tTimer); tTimer=setInterval(tStep, getSpeed(tSpeed)); } };
+        document.getElementById('trafficStepBtn').onclick = function() { if (tRunning) { clearInterval(tTimer); tTimer=null; tRunning=false; document.getElementById('trafficRunBtn').textContent='Auto-ejecutar'; } tStep(); };
+        document.getElementById('trafficRunBtn').onclick = function() { if (tRunning) { clearInterval(tTimer); tTimer=null; tRunning=false; this.textContent='Auto-ejecutar'; } else { tRunning=true; this.textContent='Detener'; tTimer=setInterval(tStep, getSpeed(tSpeed)); } };
+        document.getElementById('trafficResetBtn').onclick = tReset;
+        document.querySelectorAll('.traffic-actions .action-btn').forEach(btn => {
+            btn.onclick = function() {
+                let action = parseInt(this.dataset.action);
+                if (tRunning) { clearInterval(tTimer); tTimer=null; tRunning=false; document.getElementById('trafficRunBtn').textContent='Auto-ejecutar'; }
+                let state = tGetState(), reward = -tQueues.reduce((a,b)=>a+b,0)*0.5;
+                let nextState = tGetState(), maxNext = Math.max(...tQTable[nextState]);
+                tQTable[state][action] += tAlpha * (reward + tGamma * maxNext - tQTable[state][action]);
+                tTotalReward += reward; tEpisode++; tLastAction = action; tRewardHistory.push(tTotalReward); if (tRewardHistory.length > 50) tRewardHistory.shift();
+                let released = Math.min(tQueues[action], 3 + Math.floor(Math.random()*3));
+                tQueues[action] = Math.max(0, tQueues[action] - released);
+                for (let i=0; i<4; i++) { tQueues[i] += Math.floor(Math.random()*2); if (tQueues[i] > 30) tQueues[i] = 30; }
+                renderTraffic(); renderTrafficChart();
+                document.getElementById('trafficEpisode').textContent = tEpisode;
+                document.getElementById('trafficTotalReward').textContent = tTotalReward.toFixed(1);
+                document.getElementById('trafficLastAction').textContent = String.fromCharCode(65 + action);
+                document.querySelectorAll('.traffic-phase').forEach(el => el.classList.toggle('active-phase', parseInt(el.dataset.phase) === action));
+            };
+        });
+        renderTraffic(); renderTrafficChart();
+        tQueues = [5,3,8,2]; renderTraffic();
+    </script>
+</body>
+</html>
