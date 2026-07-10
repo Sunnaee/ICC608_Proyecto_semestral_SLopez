@@ -23,6 +23,17 @@ La aplicación incluye:
 ## Instrucciones de ejecución
 
 1. **Construir la imagen y levantar el contenedor**  
+
    Abre una terminal en la carpeta del proyecto y ejecuta:
    ```bash
    docker-compose up -d --build
+
+2. **Acceder a la aplicación**
+
+    Abre tu navegador web y visita: http://localhost:8080
+
+3. **Detener el contenedor**
+
+    Para detener la ejecución, presiona Ctrl+C en la terminal o ejecuta:
+    ```bash
+    docker-compose down
